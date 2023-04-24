@@ -4,47 +4,114 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
+using MySql.Data.MySqlClient;
+using Org.BouncyCastle.Asn1;
 
 namespace StokGudang
 {
 	public class KardusRepo
 	{
+		string conString = "server=127.0.0.1;database=apkgudang;uid=root;pwd=;";
+		MySqlConnection myConnection;
+
 		public List<Kardus> listKardus = new List<Kardus>();
 		public int kardusID = 0;
+		public bool mySqlConnect()
+		{
+			myConnection = new MySqlConnection(conString);
+			try
+			{
+				myConnection.Open();
+				return true;
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show(ex.Message);
+				return false;
+
+			}
+
+		}
+		public void mySqlClose()
+		{
+			myConnection.Close();
+			Console.Write("berhsil aterputus");
+
+		}
+		public string checkConnection()
+		{
+			myConnection = new MySqlConnection(conString);
+			try
+			{
+
+				myConnection.Open();
+				myConnection.Close();
+				return "berhasil";
+			}
+			catch (Exception ex)
+			{
+				return ex.Message;
+
+			}
+		}
 		public void SaveData()
 		{
-			if (File.Exists("data.csv"))
-				File.Delete("data.csv");
-			StreamWriter sw = new StreamWriter("data.csv");
-			sw.WriteLine("#kardusID, kardusNama, kardusBerat, kardusIsi, kardusKadaluarsa");
-			foreach (Kardus getKardus in listKardus)
-				sw.WriteLine(getKardus.ID.ToString() + "," + getKardus.Nama.ToString() + "," + getKardus.Berat.ToString() + "," + getKardus.Isi.ToString() + "," + getKardus.Kadaluarsa.ToString() + "");
-			sw.Close();
+			if (mySqlConnect())
+			{
+				string query = "delete from kardus";
+				try
+				{
+
+					var cmd = new MySqlCommand(query, myConnection);
+					var reader = cmd.ExecuteNonQuery();
+					foreach (Kardus getKardus in listKardus)
+					{
+						query = string.Format("insert into kardus values('{0}', '{1}', '{2}', '{3}', '{4}' )", getKardus.ID.ToString(), getKardus.Nama.ToString(), getKardus.Berat.ToString() ,getKardus.Isi.ToString(), getKardus.Kadaluarsa.ToString() ) ;
+						 cmd = new MySqlCommand(query, myConnection);
+						 reader = cmd.ExecuteNonQuery();
+
+					}
+						
+				}
+				catch (MySqlException ex)
+				{
+					MessageBox.Show("Error: " + ex.Message);
+				}
+				mySqlClose();
+			}
+
+		
 		}
 		public void LoadData()
 		{
-			if (File.Exists("data.csv"))
+			
+			if (mySqlConnect())
 			{
-				StreamReader sr = new StreamReader("data.csv");
-				string line = sr.ReadLine();
-				while (line != null)
+				String query = "select * from kardus";
+				var cmd = new MySqlCommand(query, myConnection);
+				var reader = cmd.ExecuteReader();
+				while (reader.Read())
 				{
-					if (!line.Contains("#"))
-					{
-						string[] strSplit = line.Split(',');
-						int id = int.Parse(strSplit[0]);
-						string nama = strSplit[1];
-						int berat = int.Parse(strSplit[2]);
-						int isi = int.Parse(strSplit[3]);
-						DateTime kadaluarsa = DateTime.Parse(strSplit[4]);
-						Kardus newKardus = new Kardus();
-						newKardus.IsiKardus(id, nama, berat, isi, kadaluarsa);
-						listKardus.Add(newKardus);
-					}
-					line = sr.ReadLine();
+					int id = reader.GetInt32(0); // 0 itu index nya
+					string nama = reader.GetString(1);
+					int berat = reader.GetInt32(2);
+					int isi = reader.GetInt32(3);
+					DateTime kadaluarsa = reader.GetDateTime(4);
+					Kardus newKardus = new Kardus();
+					newKardus.IsiKardus(id, nama, berat, isi, kadaluarsa);
+					listKardus.Add(newKardus);
+
+
 				}
-				sr.Close();
+
+				mySqlClose();
+
+
 			}
+
+
+			
 		}
 		public int GetFreeID()
 		{
